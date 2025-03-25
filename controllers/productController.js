@@ -8,7 +8,7 @@ exports.createProduct = async (req, res) => {
             req.body.image_url = `/uploads/${req.file.filename}`;
         }
 
-        // Obtener el business_id del usuario autenticado
+        // Obtener el business_id del usuario
         const [business] = await pool.query(
             'SELECT id FROM businesses WHERE owner_id = ?',
             [req.user.id]
@@ -20,12 +20,29 @@ exports.createProduct = async (req, res) => {
 
         const businessId = business[0].id;
 
+        // Crear el producto para todo el negocio
         const [result] = await pool.query(
-            'INSERT INTO products (name, description, price, image_url, available, category_id, branch_id, user_id, business_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.body.name, req.body.description, req.body.price, req.body.image_url, req.body.available, req.body.category_id, req.body.branch_id, req.user.id, businessId]
+            'INSERT INTO products (name, description, price, image_url, category_id, business_id, user_id, available) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                req.body.name,
+                req.body.description,
+                req.body.price,
+                req.body.image_url,
+                req.body.category_id,
+                businessId,
+                req.user.id,
+                true
+            ]
         );
         
-        const [product] = await pool.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
+        const [product] = await pool.query(
+            'SELECT p.*, c.name as category_name \
+            FROM products p \
+            LEFT JOIN categories c ON p.category_id = c.id \
+            WHERE p.id = ?',
+            [result.insertId]
+        );
+
         res.status(201).json(product[0]);
     } catch (error) {
         res.status(500).json({ message: 'Error al crear producto', error: error.message });
@@ -160,5 +177,47 @@ exports.deleteProduct = async (req, res) => {
         res.status(204).json({ message: 'Producto eliminado exitosamente' });
     } catch (error) {
         res.status(500).json({ message: 'Error al eliminar producto', error: error.message });
+    }
+};
+
+exports.getBusinessMenu = async (req, res) => {
+    try {
+        const [products] = await pool.query(
+            'SELECT p.*, c.name as category_name, c.id as category_id \
+            FROM products p \
+            LEFT JOIN categories c ON p.category_id = c.id \
+            WHERE p.business_id = ? AND p.available = true \
+            ORDER BY c.name, p.name',
+            [req.params.businessId]
+        );
+
+        // Group products by category
+        const menu = products.reduce((acc, product) => {
+            const category = {
+                id: product.category_id,
+                name: product.category_name
+            };
+            
+            if (!acc[product.category_id]) {
+                acc[product.category_id] = {
+                    category: category,
+                    products: []
+                };
+            }
+            
+            acc[product.category_id].products.push({
+                id: product.id,
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                image_url: product.image_url
+            });
+            
+            return acc;
+        }, {});
+
+        res.status(200).json(Object.values(menu));
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener el menú', error: error.message });
     }
 };

@@ -14,6 +14,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 // Importar middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -55,6 +56,9 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+
+// Public routes (no authentication required)
+app.use('/api/public', publicRoutes);
 
 // Manejo de errores
 app.use(errorHandler);
