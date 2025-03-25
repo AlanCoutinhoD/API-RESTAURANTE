@@ -34,50 +34,62 @@ exports.createProduct = async (req, res) => {
 
 exports.getProducts = async (req, res) => {
     try {
-        let query = 'SELECT p.*, c.name as category_name, b.name as branch_name FROM products p \
-                    LEFT JOIN categories c ON p.category_id = c.id \
-                    LEFT JOIN branches b ON p.branch_id = b.id';
-        const params = [];
+        const [products] = await pool.query(
+            'SELECT p.*, c.name as category_name, b.name as branch_name \
+            FROM products p \
+            LEFT JOIN categories c ON p.category_id = c.id \
+            LEFT JOIN branches b ON p.branch_id = b.id \
+            WHERE p.user_id = ?',
+            [req.user.id]
+        );
 
-        if (req.query.category) {
-            query += ' WHERE category_id = ?';
-            params.push(req.query.category);
-        }
-
-        if (req.query.branch) {
-            if (params.length === 0) {
-                query += ' WHERE branch_id = ?';
-            } else {
-                query += ' AND branch_id = ?';
-            }
-            params.push(req.query.branch);
-        }
-
-        if (req.query.available !== undefined) {
-            if (params.length === 0) {
-                query += ' WHERE available = ?';
-            } else {
-                query += ' AND available = ?';
-            }
-            params.push(req.query.available === 'true');
-        }
-
-        const [products] = await pool.query(query, params);
-        res.json(products);
+        res.status(200).json(products);
     } catch (error) {
-        res.status(500).json({ message: 'Error al obtener productos', error: error.message });
+        res.status(500).json({
+            status: 'error',
+            message: 'Error al obtener los productos',
+            error: error.message
+        });
+    }
+};
+
+exports.getProduct = async (req, res) => {
+    try {
+        const [product] = await pool.query(
+            'SELECT p.*, c.name as category_name, b.name as branch_name \
+            FROM products p \
+            LEFT JOIN categories c ON p.category_id = c.id \
+            LEFT JOIN branches b ON p.branch_id = b.id \
+            WHERE p.id = ? AND p.user_id = ?',
+            [req.params.productId, req.user.id]
+        );
+
+        if (!product.length) {
+            return res.status(404).json({ message: 'Producto no encontrado' });
+        }
+
+        res.json(product[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener producto', error: error.message });
     }
 };
 
 exports.getProductsByBranch = async (req, res) => {
     try {
         const [products] = await pool.query(
-            'SELECT p.*, c.name as category_name, b.name as branch_name FROM products p \
+            'SELECT p.*, c.name as category_name, b.name as branch_name \
+            FROM products p \
             LEFT JOIN categories c ON p.category_id = c.id \
             LEFT JOIN branches b ON p.branch_id = b.id \
-            WHERE p.branch_id = ?',
-            [req.params.branchId]
+            LEFT JOIN businesses bu ON b.business_id = bu.id \
+            WHERE p.branch_id = ? AND bu.owner_id = ?',
+            [req.params.branchId, req.user.id]
         );
+
+        if (!products.length) {
+            return res.status(404).json({ message: 'No hay productos para esta sucursal' });
+        }
+
         res.json(products);
     } catch (error) {
         res.status(500).json({ message: 'Error al obtener productos', error: error.message });
@@ -87,11 +99,13 @@ exports.getProductsByBranch = async (req, res) => {
 exports.getProduct = async (req, res) => {
     try {
         const [product] = await pool.query(
-            'SELECT p.*, c.name as category_name, b.name as branch_name FROM products p \
+            'SELECT p.*, c.name as category_name, b.name as branch_name \
+            FROM products p \
             LEFT JOIN categories c ON p.category_id = c.id \
             LEFT JOIN branches b ON p.branch_id = b.id \
-            WHERE p.id = ?',
-            [req.params.productId]
+            LEFT JOIN businesses bu ON b.business_id = bu.id \
+            WHERE p.id = ? AND bu.owner_id = ?',
+            [req.params.productId, req.user.id]
         );
 
         if (!product.length) {

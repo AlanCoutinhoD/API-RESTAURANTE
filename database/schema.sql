@@ -1,7 +1,7 @@
 -- Crear base de datos
 CREATE DATABASE restaurant_system;
 
-
+USE restaurant_system;
 
 -- Crear tabla de usuarios
 CREATE TABLE users (

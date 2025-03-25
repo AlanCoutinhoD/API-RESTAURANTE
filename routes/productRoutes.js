@@ -8,13 +8,13 @@ const productRestriction = require('../middleware/productRestriction');
 router.use(authMiddleware.protect);
 
 // Rutas de producto
-router.get('/', authMiddleware.restrictTo('admin'), productController.getProducts);
-router.get('/:branchId', authMiddleware.restrictTo('admin'), productRestriction.checkProductBranchOwnership, productController.getProductsByBranch);
-router.post('/', authMiddleware.restrictTo('admin'), productController.createProduct);
+router.get('/', productController.getProducts);
+router.get('/:branchId', productController.getProductsByBranch);
+router.post('/', productController.createProduct);
 
 router.route('/:productId')
-    .get(authMiddleware.restrictTo('admin'), productRestriction.checkProductOwnership, productController.getProduct)
-    .patch(authMiddleware.restrictTo('admin'), productRestriction.checkProductOwnership, productController.updateProduct)
-    .delete(authMiddleware.restrictTo('admin'), productRestriction.checkProductOwnership, productController.deleteProduct);
+    .get(productController.getProduct)
+    .patch(productController.updateProduct)
+    .delete(productController.deleteProduct);
 
 module.exports = router;
