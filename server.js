@@ -19,6 +19,7 @@ const publicRoutes = require('./routes/publicRoutes');
 // Importar middleware
 const errorHandler = require('./middleware/errorHandler');
 const fileUpload = require('./middleware/fileUpload');
+require('./services/websocketService');
 
 const app = express();
 

@@ -16,4 +16,6 @@ router.route('/:id')
     .patch(orderController.updateOrder)
     .delete(orderController.deleteOrder);
 
+router.get('/branch/:branchId', orderController.getOrdersByBranch);
+
 module.exports = router;
