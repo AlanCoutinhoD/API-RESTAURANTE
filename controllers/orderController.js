@@ -83,14 +83,14 @@ exports.getOrders = async (req, res) => {
 
 exports.getOrdersByBranch = async (req, res) => {
     try {
-        // First get all orders for the branch
+        // First get all orders for the branch that are not prepared
         const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE branch_id = ? ORDER BY created_at DESC',
+            'SELECT * FROM orders WHERE branch_id = ? AND status != "prepared" ORDER BY created_at DESC',
             [req.params.branchId]
         );
 
         if (!orders.length) {
-            return res.status(404).json({ message: 'No hay órdenes para esta sucursal' });
+            return res.status(404).json({ message: 'No hay órdenes pendientes para esta sucursal' });
         }
 
         // Then get items for each order
@@ -119,6 +119,47 @@ exports.getOrdersByBranch = async (req, res) => {
         res.status(200).json(ordersWithItems);
     } catch (error) {
         res.status(500).json({ message: 'Error al obtener órdenes', error: error.message });
+    }
+};
+
+exports.getPreparedOrdersByBranch = async (req, res) => {
+    try {
+        // Get only prepared orders for the branch
+        const [orders] = await pool.query(
+            'SELECT * FROM orders WHERE branch_id = ? AND status = "prepared" ORDER BY created_at DESC',
+            [req.params.branchId]
+        );
+
+        if (!orders.length) {
+            return res.status(404).json({ message: 'No hay órdenes preparadas para esta sucursal' });
+        }
+
+        // Get items for each order
+        const ordersWithItems = await Promise.all(orders.map(async (order) => {
+            const [items] = await pool.query(
+                'SELECT oi.*, p.name as product_name, p.description as product_description \
+                FROM order_items oi \
+                LEFT JOIN products p ON oi.product_id = p.id \
+                WHERE oi.order_id = ?',
+                [order.id]
+            );
+
+            return {
+                ...order,
+                items: items.map(item => ({
+                    id: item.id,
+                    product_name: item.product_name,
+                    description: item.product_description,
+                    quantity: item.quantity,
+                    price: item.price,
+                    total: item.quantity * item.price
+                }))
+            };
+        }));
+
+        res.status(200).json(ordersWithItems);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener órdenes preparadas', error: error.message });
     }
 };
 
