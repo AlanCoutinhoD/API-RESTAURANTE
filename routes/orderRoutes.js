@@ -12,8 +12,11 @@ router.route('/')
     .post(orderController.createOrder);
 
 router.route('/:id')
+    .patch(orderController.updateOrder)
     .delete(orderController.deleteOrder);
 
+router.get('/branch/:branchId/payment_status/:payment_status', orderController.getOrdersByPaymentStatus);
 router.get('/branch/:branchId', orderController.getOrdersByBranch);
+router.get('/branch/:branchId/delivered', orderController.getDeliveredOrdersByBranch);
 
 module.exports = router;

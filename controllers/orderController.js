@@ -163,6 +163,47 @@ exports.getPreparedOrdersByBranch = async (req, res) => {
     }
 };
 
+exports.getDeliveredOrdersByBranch = async (req, res) => {
+    try {
+        // Get only entregado orders for the branch
+        const [orders] = await pool.query(
+            'SELECT * FROM orders WHERE branch_id = ? AND status = "entregado" ORDER BY created_at DESC',
+            [req.params.branchId]
+        );
+
+        if (!orders.length) {
+            return res.status(404).json({ message: 'No hay órdenes entregadas para esta sucursal' });
+        }
+
+        // Get items for each order
+        const ordersWithItems = await Promise.all(orders.map(async (order) => {
+            const [items] = await pool.query(
+                'SELECT oi.*, p.name as product_name, p.description as product_description \
+                FROM order_items oi \
+                LEFT JOIN products p ON oi.product_id = p.id \
+                WHERE oi.order_id = ?',
+                [order.id]
+            );
+
+            return {
+                ...order,
+                items: items.map(item => ({
+                    id: item.id,
+                    product_name: item.product_name,
+                    description: item.product_description,
+                    quantity: item.quantity,
+                    price: item.price,
+                    total: item.quantity * item.price
+                }))
+            };
+        }));
+
+        res.status(200).json(ordersWithItems);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener órdenes entregadas', error: error.message });
+    }
+};
+
 exports.getOrder = async (req, res) => {
     try {
         const [order] = await pool.query(
@@ -252,5 +293,49 @@ exports.deleteOrder = async (req, res) => {
         res.json({ message: 'Orden eliminada exitosamente' });
     } catch (error) {
         res.status(500).json({ message: 'Error al eliminar orden', error: error.message });
+    }
+};
+
+exports.getOrdersByPaymentStatus = async (req, res) => {
+    try {
+        const [orders] = await pool.query(
+            'SELECT o.*, b.name as branch_name \
+            FROM orders o \
+            LEFT JOIN branches b ON o.branch_id = b.id \
+            WHERE o.payment_status = ? AND o.branch_id = ? \
+            ORDER BY o.created_at DESC',
+            [req.params.payment_status, req.params.branchId]
+        );
+
+        if (!orders.length) {
+            return res.status(404).json({ message: 'No hay órdenes con este estado de pago para esta sucursal' });
+        }
+
+        // Get items for each order
+        const ordersWithItems = await Promise.all(orders.map(async (order) => {
+            const [items] = await pool.query(
+                'SELECT oi.*, p.name as product_name, p.description as product_description \
+                FROM order_items oi \
+                LEFT JOIN products p ON oi.product_id = p.id \
+                WHERE oi.order_id = ?',
+                [order.id]
+            );
+
+            return {
+                ...order,
+                items: items.map(item => ({
+                    id: item.id,
+                    product_name: item.product_name,
+                    description: item.product_description,
+                    quantity: item.quantity,
+                    price: item.price,
+                    total: item.quantity * item.price
+                }))
+            };
+        }));
+
+        res.status(200).json(ordersWithItems);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener órdenes', error: error.message });
     }
 };
