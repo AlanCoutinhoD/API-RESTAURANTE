@@ -12,12 +12,7 @@ router.route('/')
     .post(orderController.createOrder);
 
 router.route('/:id')
-    .get(orderController.getOrder)
-    .patch(orderController.updateOrder)
     .delete(orderController.deleteOrder);
-
-// Add this new route
-router.get('/branch/:branchId/prepared', orderController.getPreparedOrdersByBranch);
 
 router.get('/branch/:branchId', orderController.getOrdersByBranch);
 
